@@ -4,10 +4,11 @@ import { MutableBuffer } from 'mutable-buffer';
 export class BufferBuilder {
 
   private buffer: MutableBuffer;
+  private textEncoding: string;
 
-  constructor(private defaultSettings: boolean = true) {
+  constructor(private defaultSettings: boolean = true, textEncoding: string = 'ascii') {
     this.buffer = new MutableBuffer();
-
+    this.textEncoding = textEncoding;
     if (this.defaultSettings) {
       this.resetCharacterSize();
       this.resetCharacterCodeTable();
@@ -117,7 +118,7 @@ export class BufferBuilder {
     return this;
   }
 
-  public printText(text: string, encoding: string = 'ascii'): BufferBuilder {
+  public printText(text: string, encoding: string = this.textEncoding): BufferBuilder {
     this.buffer.write(text, encoding);
     return this;
   }

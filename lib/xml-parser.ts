@@ -1,4 +1,4 @@
-import * as parser from 'xml-parser';
+import parser from 'xml-parser';
 import { BufferBuilder } from './buffer-builder';
 import { XMLNode } from './xml-node';
 import { NodeFactory } from './node-factory';
@@ -10,8 +10,8 @@ export class XMLParser {
     return this.compile(parsedXML);
   }
 
-  private compile(parsedXML: any): BufferBuilder {
-    let bufferBuilder = new BufferBuilder();
+  private compile(parsedXML: any): BufferBuilder {    
+    let bufferBuilder = new BufferBuilder(true, parsedXML.declaration.attributes.encoding);
     let rootNode = this.adapter(parsedXML.root, null);
     return rootNode.draw(bufferBuilder);
   }
