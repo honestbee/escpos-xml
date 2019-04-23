@@ -117,8 +117,8 @@ export class BufferBuilder {
     return this;
   }
 
-  public printText(text: string): BufferBuilder {
-    this.buffer.write(text, 'ascii');
+  public printText(text: string, encoding: string = 'ascii'): BufferBuilder {
+    this.buffer.write(text, encoding);
     return this;
   }
 
