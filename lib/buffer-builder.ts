@@ -1,7 +1,9 @@
 import { Command } from './command';
 import { MutableBuffer } from 'mutable-buffer';
+import * as iconv from 'iconv-lite';
 
 export class BufferBuilder {
+
 
   private buffer: MutableBuffer;
   private textEncoding: string;
@@ -13,9 +15,15 @@ export class BufferBuilder {
       this.resetCharacterSize();
       this.resetCharacterCodeTable();
     }
+    if(textEncoding !== 'ascii') {
+      this.enterKanjiPrintingMode();
+    }
 
   }
-
+  enterKanjiPrintingMode() {
+    this.buffer.write(Command.FS_and);
+    return this;
+  }
   public end(): BufferBuilder {
     return this;
   }
@@ -107,19 +115,71 @@ export class BufferBuilder {
   }
 
   public printQRcode(data: string, version: number = 1, errorCorrectionLevel: QR_EC_LEVEL = QR_EC_LEVEL.H, componentTypes: number = 8): BufferBuilder {
-    this.buffer.write(Command.ESC_Z(version, errorCorrectionLevel, componentTypes));
-    this.buffer.writeUInt16LE(data.length); // data is a string in UTF-8
+    const s = data.length+3;
+    const pL = Math.floor(s % 256);
+    const pH = Math.floor(s / 256);
+    this.buffer.write([Command.GS, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x31, 0x00]); // qr code mode
+    this.buffer.write([Command.GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x01]); // qr code size
+    this.buffer.write([Command.GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]); // qr code error correction level
+    this.buffer.write([Command.GS, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30]); // begin store data
     this.buffer.write(data, 'ascii');
+    this.buffer.write([Command.GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]); // print qr code
     return this;
   }
 
-  public printBitmap(image: number[], width: number, height: number, scale: BITMAP_SCALE = BITMAP_SCALE.NORMAL): BufferBuilder {
-    //TODO
+  public printBitmap(pixels: {r: number, g: number, b: number, a: number}[][], width: number, height: number): BufferBuilder {
+    const imageBuffer_array = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let pixel = pixels[y][x];
+        let pos = x + y * width;
+        let bytePos = Math.floor(pos / 8);
+        let bitPos = 8 - (pos % 8) - 1;
+        let value = imageBuffer_array[bytePos] || 0x00;
+        if (this.isBlack(pixel)) {
+          value |= (1 << bitPos); // setting the correct bit to 1
+        }
+        imageBuffer_array[bytePos] = value;
+      }
+    }
+    const bitwidth = Math.ceil(width / 8);
+    const bitheight = Math.ceil(imageBuffer_array.length / bitwidth);
+    const rastersize = bitwidth*bitheight;
+    // fill the tail gap
+    if(imageBuffer_array.length < rastersize) {
+      const gap = rastersize - imageBuffer_array.length;
+      for ( let g = 0; g < gap; g++) {
+        imageBuffer_array.push(0x00);
+      }
+    }     
+  
+    let imageBuffer = Buffer.from(imageBuffer_array);
+
+    this.buffer.write([0x1D, 0x76, 0x30, 0x00]);
+    this.buffer.write([bitwidth & 0xff]);
+    this.buffer.write([bitwidth >> 8]);
+    this.buffer.write([bitheight & 0xff]);
+    this.buffer.write([bitheight >> 8]);
+
+    // append data
+    this.buffer.write(imageBuffer);
+
     return this;
   }
 
-  public printText(text: string, encoding: string = this.textEncoding): BufferBuilder {
-    this.buffer.write(text, encoding);
+  public isBlack(pixel: {a: number, r: number, g: number, b: number}): boolean {
+    if(!pixel) {
+      return false;
+    }
+    if (pixel.a && pixel.a < 128) { // checking transparency
+      return false;
+    }
+    const intensity = (pixel.r + pixel.g + pixel.b) / 3;
+    return intensity < 128;
+  }
+
+  public printText(text: string, encoding: string = this.textEncoding): BufferBuilder {        
+    this.buffer.write(iconv.encode(text, encoding), 'ascii');
     return this;
   }
 
@@ -159,6 +219,16 @@ export class BufferBuilder {
     this.buffer.write(Command.GS_v(1));
     return this;
   }
+
+
+  /**
+   * Register Play Beep Action
+   * @return BufferBuilder
+   */
+  public playBeep(): BufferBuilder {
+    this.buffer.write([Command.ESC, 0x42, 0x02, 0x02]);
+    return this;
+  }  
 
 
 }

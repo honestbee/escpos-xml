@@ -11,6 +11,7 @@ import TextLineNode from './nodes/text-line-node';
 import UnderlineNode from './nodes/underline-node';
 import WhiteModeNode from './nodes/white-mode-node';
 import PaperCutNode from './nodes/paper-cut-node';
+import PlayBeepNode from './nodes/play-beep-node';
 
 export class NodeFactory {
 
@@ -29,6 +30,7 @@ export class NodeFactory {
       case 'underline':  return new UnderlineNode(node);
       case 'white-mode': return new WhiteModeNode(node);
       case 'paper-cut': return new PaperCutNode(node);
+      case 'play-beep': return new PlayBeepNode(node);
       default:           return null;
     }
   }
