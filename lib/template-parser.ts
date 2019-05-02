@@ -72,4 +72,10 @@ export class TemplateParser {
     return new XMLParser().parser(xml);
   }
 
+  public getXML(template, scope): BufferBuilder {
+    let fn = this.handlebars.compile(template);
+    let xml = fn(scope);
+    return xml;
+  }
+
 }
